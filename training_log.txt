@@ -1,0 +1,28 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[train] loaded 18369 rows, dropped 5849 (barely-true/half-true), kept 12520
+[train] label distribution:
+label
+0    7709
+1    4811
+Name: count, dtype: int64
+[validation] loaded 2297 rows, dropped 732 (barely-true/half-true), kept 1565
+[validation] label distribution:
+label
+0    964
+1    601
+Name: count, dtype: int64
+Loading weights:   0%|          | 0/100 [00:00<?, ?it/s]Loading weights: 100%|██████████| 100/100 [00:00<00:00, 8185.45it/s]
+[transformers] [1mDistilBertModel LOAD REPORT[0m from: distilbert-base-uncased
+Key                     | Status     |  | 
+------------------------+------------+--+-
+vocab_transform.bias    | UNEXPECTED |  | 
+vocab_transform.weight  | UNEXPECTED |  | 
+vocab_projector.bias    | UNEXPECTED |  | 
+vocab_layer_norm.weight | UNEXPECTED |  | 
+vocab_layer_norm.bias   | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Epoch 1/1 | train_loss=0.5095 | val_acc=0.7572
+  -> new best (0.7572), saved to checkpoints/best_model.pt
+Training done. Best val_acc=0.7572

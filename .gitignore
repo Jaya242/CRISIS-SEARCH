@@ -1,0 +1,8 @@
+checkpoints/*.pt
+__pycache__/
+*.pyc
+.venv/
+.env
+data/*.npy
+data/corpus_embeddings.npy
+.ipynb_checkpoints/

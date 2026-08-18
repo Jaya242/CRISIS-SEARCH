@@ -1,0 +1,12 @@
+torch>=2.2
+transformers>=4.40
+datasets>=2.19
+peft>=0.10
+sentence-transformers>=2.7
+anthropic>=0.25
+gradio>=4.30
+scikit-learn>=1.4
+pandas>=2.2
+matplotlib>=3.8
+tqdm
+pytest
