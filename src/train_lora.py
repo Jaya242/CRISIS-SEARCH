@@ -78,6 +78,7 @@ def main():
     optimizer = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad], lr=args.lr
     )
+    # Create an AdamW optimizer that will update only the model parameters with requires_grad=True, using the learning rate stored in args.lr.
 
     total_steps = len(train_loader) * args.epochs
     warmup_steps = int(total_steps * args.warmup_ratio)
@@ -86,8 +87,10 @@ def main():
     )
 
     loss_fn = torch.nn.CrossEntropyLoss()
+    #to measure how wrong the model is
     best_val_acc = 0.0
     start_time = time.time()
+    # record when training started
 
     for epoch in range(args.epochs):
         model.train()
@@ -98,6 +101,7 @@ def main():
             labels = batch["label"].to(DEVICE)
 
             optimizer.zero_grad()
+            #Clear the gradients from the previous batch before calculating new ones.
             logits = model(input_ids, attention_mask)
             loss = loss_fn(logits, labels)
             loss.backward()
