@@ -18,6 +18,11 @@ from src.crisis_detector import detect_urgency
 from src.freshness import freshness_score
 from src.live_retrieval import fetch_live_articles
 from src.model import CredibilityClassifier
+from src.publisher_trust import (
+    CLASSIFIER_WEIGHT,
+    PRIOR_WEIGHT,
+    get_publisher_trust,
+)
 from src.ranker import WEIGHT_PROFILES
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -70,7 +75,9 @@ def run_pipeline_live(query: str, top_k: int = 5, fetch_n: int = 15) -> dict:
 
     scored = []
     for article, R in zip(articles, similarities):
-        C = _score_credibility(f"{article['title']}. {article['text']}")
+        classifier_C = _score_credibility(f"{article['title']}. {article['text']}")
+        publisher_C = get_publisher_trust(article.get("source", ""))
+        C = PRIOR_WEIGHT * publisher_C + CLASSIFIER_WEIGHT * classifier_C
         F = freshness_score(article["publish_date"])
 
         score = weights["w_r"] * R + weights["w_c"] * C + weights["w_f"] * F
@@ -79,7 +86,11 @@ def run_pipeline_live(query: str, top_k: int = 5, fetch_n: int = 15) -> dict:
             **article,
             "final_score": float(score),
             "breakdown": {
-                "relevance": float(R), "credibility": C, "freshness": F,
+                "relevance": float(R),
+                "credibility": float(C),
+                "credibility_prior": float(publisher_C),
+                "credibility_classifier": float(classifier_C),
+                "freshness": F,
                 "weights_used": weights,
             },
         })

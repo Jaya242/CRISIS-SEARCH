@@ -31,7 +31,7 @@ Given a natural-language query, Signal:
 2. **Classifies the query intent** as `emergency` or `standard` using a keyword-based crisis detector (word-boundary matching, emergency signals win ties — because missing a real emergency is worse than a false alarm).
 3. **Scores each article** on three axes:
    - **Relevance** — semantic similarity between the query and article, computed with `sentence-transformers/all-MiniLM-L6-v2`.
-   - **Credibility** — a per-article score from a fine-tuned DistilBERT classifier trained on the LIAR2 dataset (75.7% validation accuracy).
+   - **Credibility** — a hybrid score: `0.6 × publisher_prior + 0.4 × classifier`. The publisher prior is a curated reputation table (`src/publisher_trust.py`); the classifier is a DistilBERT fine-tuned on LIAR2 (75.7% validation accuracy). The blend fixes a real problem — LIAR2 is political-claim data, so on news headlines the classifier is out of distribution and its output clusters low. Combining it with a per-publisher prior restores the source-level signal it can't recover from text alone.
    - **Freshness** — exponential time-decay `exp(-age_in_days / 30)`.
 4. **Combines the three signals** with mode-specific weights, sorts by the composite score, and returns the top K with a full breakdown of *why each result ranked where it did*.
 
@@ -66,7 +66,13 @@ The mode is selected by `src/crisis_detector.py`, which does word-boundary regex
 
 The `30` constant sets the decay speed — an article halves in freshness every ~21 days.
 
-**Credibility model.** A DistilBERT encoder + dropout + linear head. Trained on LIAR2 (18,369 rows down to 12,520 after dropping the ambiguous "barely-true" and "half-true" labels), binary classification (`credible` vs `not_credible`). One-epoch training reached 75.7% validation accuracy. Also included in `src/train_lora.py`: a LoRA-adapted variant if you want to keep the base model frozen and swap adapters.
+**Credibility model.** Two components combined:
+
+1. **Publisher prior** — a hand-curated reputation table in `src/publisher_trust.py` covering ~70 outlets (wire services, mainstream, state media, tabloids). Scores are informed by widely-cited factuality assessments (Ad Fontes, Media Bias/Fact Check, NewsGuard). Unknown publishers fall back to a slightly-above-neutral default of 0.55. This table is a hypothesis, not a fitted result.
+
+2. **Text classifier** — DistilBERT encoder + dropout + linear head. Trained on LIAR2 (18,369 rows down to 12,520 after dropping the ambiguous "barely-true" and "half-true" labels), binary classification (`credible` vs `not_credible`). One-epoch training reached 75.7% validation accuracy. A LoRA-adapted variant is in `src/train_lora.py`.
+
+**Blend:** `final_credibility = 0.6 · publisher_prior + 0.4 · classifier_score`. This is the honest fix for a real domain mismatch — LIAR2 was politicians' claims, not news headlines, so on this data the classifier is out of distribution and its output clusters low (0.01–0.10). The publisher prior is what stops NPR from ranking below BuzzFeed on the same query, which the pure-classifier version did.
 
 ## Architecture
 

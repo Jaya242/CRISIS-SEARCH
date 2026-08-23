@@ -539,6 +539,109 @@ button.example-chip:hover {
 .site-footer a:hover { color: var(--text); }
 .site-footer .foot-brand { display: flex; align-items: center; gap: 10px; }
 .site-footer .foot-brand .logo-mark { width: 16px; height: 16px; }
+
+/* ------------------ MOBILE (<= 720px) ------------------ */
+@media (max-width: 720px) {
+    /* Reset all outer horizontal padding to 16px so no nested container overflows */
+    .top-nav,
+    .content-narrow,
+    .content-mid,
+    .content-wide,
+    .examples-wrap,
+    .results-wrap,
+    .ranks-strip,
+    .sources-strip,
+    .site-footer {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+
+    /* Nav: hide non-CTA text links, keep the GitHub button */
+    .top-nav { padding-top: 12px !important; padding-bottom: 12px !important; }
+    .top-nav .nav-links { gap: 10px; font-size: 0.62rem; letter-spacing: 0.12em; }
+    .top-nav .nav-links a:not(.nav-cta) { display: none; }
+    .top-nav .wordmark { font-size: 1.15rem; }
+    .top-nav .beta-pill { font-size: 0.55rem; padding: 2px 6px; }
+    .top-nav .nav-cta { padding: 6px 10px; font-size: 0.62rem; }
+
+    /* Hero: dramatically smaller headline, tighter spacing */
+    #hero { padding: 44px 16px 6px 16px; }
+    #hero .eyebrow { font-size: 0.6rem; letter-spacing: 0.28em; margin-bottom: 10px; }
+    #hero h1 { font-size: 3.5rem !important; line-height: 0.95 !important; margin-bottom: 14px !important; }
+    #hero p.tagline { font-size: 1rem !important; padding: 0 8px; }
+    #hero p.sub { font-size: 0.88rem !important; padding: 0 8px; }
+    .status-line {
+        font-size: 0.55rem; letter-spacing: 0.15em;
+        padding: 6px 12px; gap: 8px;
+        margin-top: 20px;
+        max-width: calc(100% - 32px);
+        flex-wrap: wrap; justify-content: center;
+    }
+
+    /* Search row: stack vertically, full-width button */
+    #query-row {
+        max-width: 100% !important;
+        padding: 0 16px !important;
+        flex-direction: column !important;
+    }
+    #query-row textarea, #query-row input {
+        font-size: 0.92rem !important;
+        padding: 14px 16px !important;
+    }
+    #search-btn { width: 100% !important; min-width: 0 !important; }
+
+    /* Examples: stack label above chips, chips wrap */
+    .examples-wrap { padding: 0 16px !important; margin-top: 16px; }
+    .example-group { flex-direction: column; align-items: stretch; gap: 8px; margin: 14px 0; }
+    .example-label { min-width: auto; }
+    button.example-chip { width: 100%; text-align: center; }
+
+    /* Radar: smaller so it doesn't dominate the small viewport */
+    .radar { width: 100px; height: 100px; }
+    .radar::before { inset: 16px; }
+    .radar::after  { inset: 34px; }
+    #radar-wrap { margin: 30px 0 6px 0; }
+
+    /* Results: smaller headline, snug padding, tighter meta */
+    .results-wrap { padding: 16px 16px 24px 16px !important; }
+    .mode-row { margin-top: 22px; }
+    .mode-badge { font-size: 1.35rem; }
+    .mode-note { font-size: 0.85rem; margin-bottom: 20px; }
+    .result-card { padding: 18px 20px; }
+    .result-card h3 { font-size: 1.15rem; line-height: 1.2; }
+    .result-meta { font-size: 0.72rem; gap: 6px; }
+    .signal-bars { gap: 14px; }
+    .signal-bar-wrap { min-width: 100%; }
+    .weights-note { font-size: 0.62rem; }
+
+    /* How Signal ranks: stack cards, smaller heading */
+    .ranks-strip { padding-top: 42px !important; margin-top: 30px; }
+    .ranks-title { font-size: 2rem; }
+    .ranks-sub { font-size: 0.9rem; padding: 0 8px; }
+    .rank-cards { grid-template-columns: 1fr !important; gap: 14px; }
+    .rank-card { padding: 20px 22px; }
+    .rank-card .name { font-size: 1.45rem; }
+
+    /* Sources: wrap tighter */
+    .sources-strip { padding-top: 34px !important; padding-bottom: 22px !important; }
+    .sources-row { gap: 22px; }
+    .source-item { font-size: 1rem; }
+
+    /* Footer: stack, smaller */
+    .site-footer {
+        flex-direction: column; align-items: flex-start; gap: 12px;
+        font-size: 0.62rem; letter-spacing: 0.14em;
+        padding-top: 24px !important; padding-bottom: 24px !important;
+    }
+}
+
+/* ------------------ VERY SMALL PHONES (<= 380px) ------------------ */
+@media (max-width: 380px) {
+    #hero h1 { font-size: 2.8rem !important; }
+    .ranks-title { font-size: 1.65rem; }
+    .top-nav .wordmark { font-size: 1rem; }
+    .top-nav .beta-pill { display: none; }
+}
 """
 
 BLIP_POSITIONS = [(18, 30), (85, 22), (62, 88), (30, 70), (75, 60)]
@@ -586,7 +689,7 @@ RANKS_STRIP_HTML = """
         <div class="rank-card">
             <div class="num">01</div>
             <div class="name">Relevance</div>
-            <div class="desc">Semantic similarity between the query and each article, from a fine-tuned cross-encoder. The dominant signal in normal conditions.</div>
+            <div class="desc">Semantic similarity between the query and each article, from a MiniLM bi-encoder used off-the-shelf. The dominant signal in normal conditions.</div>
             <div class="weights">
                 <div class="weight standard">
                     <div class="weight-lbl"><span class="m-dot"></span>Standard</div>
@@ -601,7 +704,7 @@ RANKS_STRIP_HTML = """
         <div class="rank-card">
             <div class="num">02</div>
             <div class="name">Credibility</div>
-            <div class="desc">Source-level trust score derived from a publisher whitelist and historical accuracy. Weighted heavier in emergencies where rumor is expensive.</div>
+            <div class="desc">Hybrid trust: 60% publisher-level prior from a curated reputation table + 40% per-article score from a DistilBERT classifier fine-tuned on LIAR2. Weighted heavier in emergencies where rumor is expensive.</div>
             <div class="weights">
                 <div class="weight standard">
                     <div class="weight-lbl"><span class="m-dot"></span>Standard</div>
@@ -634,18 +737,11 @@ RANKS_STRIP_HTML = """
 
 SOURCES_STRIP_HTML = """
 <div class="sources-strip" id="sources">
-    <div class="sources-label">Ingesting live from</div>
+    <div class="sources-label">Live retrieval</div>
     <div class="sources-row">
-        <span class="source-item">Reuters</span>
-        <span class="source-item">Associated Press</span>
-        <span class="source-item">BBC</span>
-        <span class="source-item">NYT</span>
-        <span class="source-item">The Guardian</span>
-        <span class="source-item">NPR</span>
-        <span class="source-item">USGS</span>
-        <span class="source-item">NOAA</span>
+        <span class="source-item">Google News RSS &nbsp;&mdash;&nbsp; hundreds of publishers</span>
     </div>
-    <div class="sources-note">via Google News RSS &nbsp;&middot;&nbsp; publisher credibility scored per source</div>
+    <div class="sources-note">Publisher-level trust prior applied per result &nbsp;&middot;&nbsp; no whitelist filtering at retrieval</div>
 </div>
 """
 
@@ -701,7 +797,14 @@ def search(query: str):
     if not query or not query.strip():
         return EMPTY_STATE_HTML
 
-    output = run_pipeline_live(query, top_k=5)
+    try:
+        output = run_pipeline_live(query.strip(), top_k=5)
+    except Exception as e:
+        return (
+            _radar_html(alert=False)
+            + f"<div class='empty-state'>Couldn't reach the news feed. Try again in a moment.<br/><span style='opacity:0.5; font-size:0.75rem'>({type(e).__name__})</span></div>"
+        )
+
     mode = output["mode"]
     results = output["results"]
     is_emergency = mode == "emergency"
@@ -709,7 +812,7 @@ def search(query: str):
     if not results:
         return (
             _radar_html(alert=is_emergency)
-            + "<div class='empty-state'>No live results found &mdash; try a different query.</div>"
+            + "<div class='empty-state'>No articles matched your query in the last 30 days.</div>"
         )
 
     radar_html = _radar_html(alert=is_emergency)
@@ -722,7 +825,7 @@ def search(query: str):
     )
     mode_class = "emergency" if is_emergency else "standard"
     header_html = f"""
-    <div class="results-wrap">
+    <div class="results-inner">
       <div class="mode-row">
         <span class="mode-dot {mode_class}"></span>
         <span class="mode-badge {mode_class}">{badge_label}</span>
@@ -775,7 +878,145 @@ EXAMPLES = [
 ]
 
 
-with gr.Blocks(title="Signal — Crisis-Aware Search", css=CUSTOM_CSS, theme=gr.themes.Base()) as demo:
+DIRECT_SEARCH_JS = """
+<script>
+/*
+ * Bypass Gradio's queue entirely. We hijack the Search button, Enter key
+ * on the textbox, and example-chip clicks, and POST directly to the plain
+ * FastAPI /api/search endpoint that's mounted alongside Gradio in
+ * modal_deploy.py. Gradio's own event chain never runs for these actions.
+ */
+(function() {
+    function setup() {
+        const searchBtn = document.getElementById('search-btn');
+        const resultsWrap = document.querySelector('.results-wrap');
+        if (!searchBtn || !resultsWrap) {
+            // Gradio hasn't mounted yet — poll every 200ms until it does.
+            setTimeout(setup, 200);
+            return;
+        }
+
+        // Query input is a Gradio Textbox — could be <textarea> or <input>.
+        const queryInput = document.querySelector(
+            '#query-row textarea, #query-row input[type="text"]'
+        );
+
+        function setLoading(query) {
+            resultsWrap.innerHTML =
+                '<div id="radar-wrap"><div class="radar">' +
+                '<div class="radar-sweep"></div>' +
+                '<div class="radar-dot-center"></div>' +
+                '</div></div>' +
+                '<div class="empty-state">SEARCHING FOR &ldquo;' +
+                query.toUpperCase().replace(/[<>&"]/g, '') +
+                '&rdquo;...</div>';
+            setTimeout(function() {
+                resultsWrap.scrollIntoView({behavior: 'smooth', block: 'start'});
+            }, 100);
+        }
+
+        function setError(message) {
+            resultsWrap.innerHTML =
+                '<div id="radar-wrap"><div class="radar">' +
+                '<div class="radar-sweep"></div>' +
+                '<div class="radar-dot-center"></div>' +
+                '</div></div>' +
+                '<div class="empty-state" style="color:#FF4F5C">' +
+                message +
+                '</div>';
+        }
+
+        async function runSearch(query) {
+            if (!query || !query.trim()) return;
+            query = query.trim();
+            if (queryInput) queryInput.value = query;
+            setLoading(query);
+
+            try {
+                const formData = new FormData();
+                formData.append('query', query);
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                const html = await response.text();
+                resultsWrap.innerHTML = html;
+                setTimeout(function() {
+                    resultsWrap.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }, 100);
+            } catch (err) {
+                setError('Search failed: ' + err.message + '. Please try again.');
+            }
+        }
+
+        // Capture-phase listeners: run BEFORE Gradio's own handlers and
+        // stop propagation so Gradio's queue never gets involved.
+        searchBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            runSearch(queryInput ? queryInput.value : '');
+        }, true);
+
+        if (queryInput) {
+            queryInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    runSearch(queryInput.value);
+                }
+            }, true);
+        }
+
+        document.querySelectorAll('button.example-chip').forEach(function(chip) {
+            chip.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                runSearch(chip.textContent.trim());
+            }, true);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+    } else {
+        setup();
+    }
+})();
+</script>
+"""
+
+SOCIAL_META_HEAD = """
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="description" content="Signal auto-detects whether your query is an active emergency or a standard lookup, then re-weights relevance, credibility, and freshness in real time. Crisis-aware search reranker." />
+<meta name="theme-color" content="#050308" />
+
+<!-- Open Graph (LinkedIn, Facebook, Slack, iMessage) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Signal" />
+<meta property="og:title" content="Signal — Crisis-Aware Search Reranker" />
+<meta property="og:description" content="Ranks news the way a newsroom would, not the way a search engine does. Auto-detects emergencies and re-weights credibility, freshness, and relevance in real time." />
+<meta property="og:url" content="https://jaya242--signal-ui.modal.run" />
+<meta property="og:image" content="https://raw.githubusercontent.com/Jaya242/CRISIS-SEARCH/main/docs/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Signal — Crisis-Aware Search Reranker" />
+<meta name="twitter:description" content="Ranks news the way a newsroom would, not the way a search engine does. Auto-detects emergencies and re-weights credibility, freshness, and relevance in real time." />
+<meta name="twitter:image" content="https://raw.githubusercontent.com/Jaya242/CRISIS-SEARCH/main/docs/og-image.png" />
+"""
+
+with gr.Blocks(
+    title="Signal — Crisis-Aware Search",
+    css=CUSTOM_CSS,
+    theme=gr.themes.Base(),
+    head=SOCIAL_META_HEAD + DIRECT_SEARCH_JS,
+    analytics_enabled=False,
+) as demo:
     gr.HTML(NAV_HTML)
     gr.HTML(HERO_HTML)
 
@@ -802,12 +1043,52 @@ with gr.Blocks(title="Signal — Crisis-Aware Search", css=CUSTOM_CSS, theme=gr.
 
     output_display = gr.HTML(EMPTY_STATE_HTML, elem_classes=["results-wrap"])
 
-    search_button.click(fn=search, inputs=query_input, outputs=output_display)
-    query_input.submit(fn=search, inputs=query_input, outputs=output_display)
+    # Single event handler for reliability: one queue task instead of four.
+    # The 4-step .then() chain that was here compounded failure — even if
+    # each hop was 90% reliable, the whole chain only worked ~65% of the
+    # time. One call = one chance to fail.
+    #
+    # The loading state now comes from Gradio's built-in indicator on the
+    # output component (subtle but present) instead of a custom button flip.
+    #
+    # The scroll is passed as the `js` param of the same event, so it fires
+    # after the function returns without adding another queue task.
+    SCROLL_TO_RESULTS_JS = """
+    () => {
+        setTimeout(() => {
+            const target = document.querySelector('.results-wrap');
+            if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }, 150);
+    }
+    """
+
+    search_button.click(
+        fn=search,
+        inputs=query_input,
+        outputs=output_display,
+        js=SCROLL_TO_RESULTS_JS,
+        show_progress="minimal",
+    )
+
+    query_input.submit(
+        fn=search,
+        inputs=query_input,
+        outputs=output_display,
+        js=SCROLL_TO_RESULTS_JS,
+        show_progress="minimal",
+    )
+
+    def _run_example(q: str):
+        """Populate the query box and run the search in one call."""
+        return q, search(q)
 
     for btn, q in example_chips:
-        btn.click(fn=lambda q=q: q, outputs=query_input) \
-           .then(fn=search, inputs=query_input, outputs=output_display)
+        btn.click(
+            fn=lambda q=q: _run_example(q),
+            outputs=[query_input, output_display],
+            js=SCROLL_TO_RESULTS_JS,
+            show_progress="minimal",
+        )
 
     gr.HTML(RANKS_STRIP_HTML)
     gr.HTML(SOURCES_STRIP_HTML)
