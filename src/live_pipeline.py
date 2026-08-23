@@ -7,6 +7,8 @@ real, current articles per query. Embeddings and credibility scores can't
 be cached here since content is unknown ahead of time — computed live,
 every query. This is the direct trade-off against pipeline.py's design.
 """
+import os
+
 import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
@@ -17,13 +19,14 @@ from src.freshness import freshness_score
 from src.live_retrieval import fetch_live_articles
 from src.model import CredibilityClassifier
 from src.ranker import WEIGHT_PROFILES
-from src.train import DEVICE
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 _embed_model = None
 _tokenizer = None
 _classifier = None
 
-CKPT_PATH = "checkpoints/best_model.pt"
+CKPT_PATH = os.getenv("SIGNAL_CKPT_PATH", "checkpoints/best_model.pt")
 
 
 def _lazy_init():
