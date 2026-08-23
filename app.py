@@ -553,7 +553,7 @@ NAV_HTML = """
     <div class="nav-links">
         <a href="#how-it-ranks">How it ranks</a>
         <a href="#sources">Sources</a>
-        <a href="https://github.com" target="_blank" class="nav-cta">GitHub &#8599;</a>
+        <a href="https://github.com/Jaya242/CRISIS-SEARCH" target="_blank" class="nav-cta">GitHub &#8599;</a>
     </div>
 </div>
 """
@@ -658,7 +658,7 @@ FOOTER_HTML = """
     <div>
         <a href="#how-it-ranks">How it ranks</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;
         <a href="#sources">Sources</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;
-        <a href="https://github.com" target="_blank">GitHub &#8599;</a>
+        <a href="https://github.com/Jaya242/CRISIS-SEARCH" target="_blank">GitHub &#8599;</a>
     </div>
 </div>
 """
