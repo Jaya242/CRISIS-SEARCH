@@ -1,5 +1,5 @@
 streamlit
 torch
-transformers<4.44
-sentence-transformers<3.0
-numpy<2
+transformers>=4.45
+sentence-transformers>=3.0
+numpy
