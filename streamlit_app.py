@@ -732,7 +732,22 @@ def _bar(label: str, value: float, css_class: str) -> str:
     """
 
 
-EMPTY_STATE_HTML = (
+def _flatten_html(html: str) -> str:
+    """Strip leading whitespace from every line and drop empty lines.
+
+    Streamlit's markdown parser treats any line starting with 4+ spaces as
+    a code block — even inside st.markdown(unsafe_allow_html=True). Our
+    triple-quoted template strings are indented for Python readability, so
+    without this the results render as literal HTML source instead of
+    laying out the cards. This flattens the string so markdown sees a
+    single unindented HTML blob and hands it straight to the browser.
+    """
+    return "\n".join(
+        line.lstrip() for line in html.splitlines() if line.strip()
+    )
+
+
+EMPTY_STATE_HTML = _flatten_html(
     _radar_html(alert=False)
     + "<div class='empty-state'>Enter a query above to begin &#8594;</div>"
 )
@@ -743,7 +758,7 @@ def render_results(query: str) -> str:
     try:
         output = run_pipeline_live(query.strip(), top_k=5)
     except Exception as e:
-        return (
+        return _flatten_html(
             _radar_html(alert=False)
             + f"<div class='empty-state' style='color:#FF4F5C'>Couldn't reach the news feed. Try again in a moment.<br/><span style='opacity:0.5; font-size:0.75rem'>({type(e).__name__})</span></div>"
         )
@@ -799,7 +814,7 @@ def render_results(query: str) -> str:
         </div>
         """)
 
-    return radar_html + header_html + "\n".join(cards)
+    return _flatten_html(radar_html + header_html + "\n".join(cards))
 
 
 # ---------------------------------------------------------------------------
