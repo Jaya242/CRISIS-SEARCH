@@ -571,6 +571,29 @@ body::after {
 .site-footer .foot-brand { display: flex; align-items: center; gap: 10px; }
 .site-footer .foot-brand .logo-mark { width: 16px; height: 16px; }
 
+/* ---- Scroll-down hint (shown after a search fires) ---- */
+.scroll-hint {
+    text-align: center;
+    padding: 22px 0 6px 0;
+    margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    color: var(--standard);
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+.scroll-hint .arrow {
+    display: inline-block;
+    margin-left: 8px;
+    animation: bounce-arrow 1.2s ease-in-out infinite;
+    font-size: 0.95rem;
+}
+@keyframes bounce-arrow {
+    0%, 100% { transform: translateY(0); opacity: 0.6; }
+    50% { transform: translateY(5px); opacity: 1; }
+}
+
 /* ---- Mobile ---- */
 @media (max-width: 720px) {
     .top-nav { padding: 12px 16px; }
@@ -932,6 +955,16 @@ with center_col:
         with st.spinner("Ranking..."):
             st.session_state.results_html = render_results(_pending)
         st.session_state._just_searched = True
+        st.session_state.has_results = True
+
+    # Scroll hint — shown once the user has run at least one search.
+    # Backup UX for when Streamlit's iframe sandbox blocks auto-scroll.
+    if st.session_state.get("has_results", False):
+        st.markdown(
+            "<div class='scroll-hint'>Scroll down to see your results "
+            "<span class='arrow'>&#8595;</span></div>",
+            unsafe_allow_html=True,
+        )
 
     # Results area
     st.markdown(
