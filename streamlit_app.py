@@ -9,6 +9,7 @@ the entry point Streamlit Community Cloud uses. Both share the same src/
 pipeline code.
 """
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.live_pipeline import run_pipeline_live
 
@@ -818,21 +819,34 @@ def render_results(query: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Session state
+# Session state + callbacks
 # ---------------------------------------------------------------------------
+# Streamlit widget rules require that any change to a widget's key in
+# session_state happens BEFORE the widget is created for the current run.
+# Callbacks fire before the next script run, so they're the safe place to
+# (a) populate the query box from a chip click and (b) mark a pending
+# search that we execute below, after the widgets have been declared.
+
 if "results_html" not in st.session_state:
     st.session_state.results_html = EMPTY_STATE_HTML
-if "current_query" not in st.session_state:
-    st.session_state.current_query = ""
+if "query_box" not in st.session_state:
+    st.session_state.query_box = ""
 
 
-def do_search(query: str):
-    """Trigger a search and stash the result HTML in session state."""
-    if not query or not query.strip():
+def _search_from_input():
+    """Search button callback — uses whatever is currently in the query box."""
+    q = st.session_state.get("query_box", "").strip()
+    if q:
+        st.session_state._pending_query = q
+
+
+def _search_from_chip(q: str):
+    """Chip click callback — writes the query into the box AND marks pending."""
+    q = q.strip()
+    if not q:
         return
-    st.session_state.current_query = query.strip()
-    with st.spinner("Ranking..."):
-        st.session_state.results_html = render_results(query.strip())
+    st.session_state.query_box = q
+    st.session_state._pending_query = q
 
 
 # ---------------------------------------------------------------------------
@@ -848,17 +862,19 @@ _, center_col, _ = st.columns([1, 5, 1])
 with center_col:
     input_col, btn_col = st.columns([5, 1])
     with input_col:
-        query = st.text_input(
+        st.text_input(
             "Query",
-            value=st.session_state.current_query,
             placeholder="e.g. wildfire evacuation zones california",
             label_visibility="collapsed",
             key="query_box",
         )
     with btn_col:
-        if st.button("SEARCH", type="primary", key="search_btn"):
-            do_search(query)
-            st.rerun()
+        st.button(
+            "SEARCH",
+            type="primary",
+            key="search_btn",
+            on_click=_search_from_input,
+        )
 
     # Example chips grouped by intent
     st.markdown(
@@ -880,13 +896,18 @@ with center_col:
                 unsafe_allow_html=True,
             )
         with chip1_col:
-            if st.button(q1, key=f"ex_{cls}_1"):
-                do_search(q1)
-                st.rerun()
+            st.button(q1, key=f"ex_{cls}_1", on_click=_search_from_chip, args=(q1,))
         with chip2_col:
-            if st.button(q2, key=f"ex_{cls}_2"):
-                do_search(q2)
-                st.rerun()
+            st.button(q2, key=f"ex_{cls}_2", on_click=_search_from_chip, args=(q2,))
+
+    # Execute pending search now that widgets are declared. The spinner
+    # displays here so the user sees "Ranking..." in the results area,
+    # not somewhere else on the page.
+    _pending = st.session_state.pop("_pending_query", None)
+    if _pending:
+        with st.spinner("Ranking..."):
+            st.session_state.results_html = render_results(_pending)
+        st.session_state._just_searched = True
 
     # Results area
     st.markdown(
@@ -898,3 +919,22 @@ with center_col:
 st.markdown(RANKS_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(SOURCES_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(FOOTER_HTML, unsafe_allow_html=True)
+
+# Auto-scroll to the results if a search just completed. We use a hidden
+# components iframe because st.markdown strips <script> tags for safety.
+# The script reaches window.parent to scroll the actual Streamlit page.
+if st.session_state.pop("_just_searched", False):
+    components.html(
+        """
+        <script>
+        setTimeout(() => {
+            try {
+                const doc = window.parent.document;
+                const target = doc.querySelector('.mode-row') || doc.querySelector('#radar-wrap');
+                if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+            } catch (e) { /* iframe sandbox — best effort */ }
+        }, 250);
+        </script>
+        """,
+        height=0,
+    )
