@@ -754,8 +754,14 @@ EMPTY_STATE_HTML = _flatten_html(
 )
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def render_results(query: str) -> str:
-    """Run the pipeline and return the full results HTML (radar + mode + cards)."""
+    """Run the pipeline and return the full results HTML (radar + mode + cards).
+
+    Cached for 5 minutes per query, so repeat searches — same query typed
+    twice, or the same chip clicked again — return instantly instead of
+    re-running the whole retrieve → embed → classify → rank pipeline.
+    """
     try:
         output = run_pipeline_live(query.strip(), top_k=5)
     except Exception as e:
