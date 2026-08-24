@@ -1,14 +1,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
+
+streamlit>=1.30
 torch>=2.2,<2.5
 transformers>=4.40,<4.44
 sentence-transformers>=2.7,<3.1
-peft>=0.10,<0.14
-streamlit>=1.30
-gradio==4.44.1
-starlette>=0.37,<0.38
-fastapi>=0.110,<0.112
-scikit-learn>=1.4
 numpy<2
-pandas>=2.2
-tqdm
-pytest

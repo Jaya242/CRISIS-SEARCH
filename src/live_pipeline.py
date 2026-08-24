@@ -38,7 +38,7 @@ CKPT_PATH = os.getenv("SIGNAL_CKPT_PATH", "checkpoints/best_model.pt")
 # SIGNAL_CKPT_URL env var if you want to change it at deploy time.
 CKPT_URL = os.getenv(
     "SIGNAL_CKPT_URL",
-    "https://github.com/Jaya242/CRISIS-SEARCH/releases/download/v1.0/best_model.pt",
+    "https://github.com/jaya242/crisis-search/releases/download/v1.0/best_model.pt",
 )
 
 
