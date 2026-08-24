@@ -942,20 +942,36 @@ st.markdown(RANKS_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(SOURCES_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(FOOTER_HTML, unsafe_allow_html=True)
 
-# Auto-scroll to the results if a search just completed. We use a hidden
-# components iframe because st.markdown strips <script> tags for safety.
-# The script reaches window.parent to scroll the actual Streamlit page.
+# Auto-scroll to the results if a search just completed. Streamlit renders
+# components.html inside a nested iframe, so window.parent might be one
+# hop shy of the actual top document. We try window.parent AND window.top,
+# and we retry a few times because the results markdown might not have
+# committed to the DOM by the time this iframe loads.
 if st.session_state.pop("_just_searched", False):
     components.html(
         """
         <script>
-        setTimeout(() => {
-            try {
-                const doc = window.parent.document;
-                const target = doc.querySelector('.mode-row') || doc.querySelector('#radar-wrap');
-                if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
-            } catch (e) { /* iframe sandbox — best effort */ }
-        }, 250);
+        (function() {
+            let attempts = 0;
+            function tryScroll() {
+                attempts++;
+                const contexts = [window.parent, window.top].filter(Boolean);
+                for (const ctx of contexts) {
+                    try {
+                        if (!ctx.document) continue;
+                        const target = ctx.document.querySelector('.mode-row')
+                                    || ctx.document.querySelector('#radar-wrap');
+                        if (target) {
+                            target.scrollIntoView({behavior: 'smooth', block: 'start'});
+                            return true;
+                        }
+                    } catch (e) { /* cross-origin blocked, try next */ }
+                }
+                if (attempts < 8) setTimeout(tryScroll, 200);
+                return false;
+            }
+            setTimeout(tryScroll, 300);
+        })();
         </script>
         """,
         height=0,
