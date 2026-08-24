@@ -829,24 +829,39 @@ def render_results(query: str) -> str:
 
 if "results_html" not in st.session_state:
     st.session_state.results_html = EMPTY_STATE_HTML
-if "query_box" not in st.session_state:
-    st.session_state.query_box = ""
+# The "controlled" query string we own. The widget key is different
+# (`query_widget_v2`) — this side-steps a Streamlit bug where writing to a
+# widget's own key from a callback doesn't always update what the widget
+# displays on the next render.
+if "controlled_query" not in st.session_state:
+    st.session_state.controlled_query = ""
+# Bump the widget key when we programmatically change the query. This
+# forces Streamlit to re-instantiate the widget with the new value= arg,
+# because the key has changed. Ugly but reliable.
+if "widget_gen" not in st.session_state:
+    st.session_state.widget_gen = 0
 
 
 def _search_from_input():
-    """Search button callback — uses whatever is currently in the query box."""
-    q = st.session_state.get("query_box", "").strip()
+    """Search button callback — uses whatever is currently in the query widget."""
+    widget_key = f"query_widget_v{st.session_state.widget_gen}"
+    q = st.session_state.get(widget_key, "").strip()
     if q:
+        st.session_state.controlled_query = q
         st.session_state._pending_query = q
 
 
 def _search_from_chip(q: str):
-    """Chip click callback — writes the query into the box AND marks pending."""
+    """Chip click callback — writes the query into the box AND marks pending.
+
+    Bumps widget_gen so the text_input re-instantiates with the new value.
+    """
     q = q.strip()
     if not q:
         return
-    st.session_state.query_box = q
+    st.session_state.controlled_query = q
     st.session_state._pending_query = q
+    st.session_state.widget_gen += 1
 
 
 # ---------------------------------------------------------------------------
@@ -864,9 +879,10 @@ with center_col:
     with input_col:
         st.text_input(
             "Query",
+            value=st.session_state.controlled_query,
             placeholder="e.g. wildfire evacuation zones california",
             label_visibility="collapsed",
-            key="query_box",
+            key=f"query_widget_v{st.session_state.widget_gen}",
         )
     with btn_col:
         st.button(
