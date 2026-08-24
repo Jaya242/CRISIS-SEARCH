@@ -791,6 +791,7 @@ def render_results(query: str) -> str:
     accent = "var(--emergency)" if is_emergency else "var(--standard)"
 
     header_html = f"""
+    <div id="results-anchor"></div>
     <div class="mode-row">
       <span class="mode-dot {mode_class}"></span>
       <span class="mode-badge {mode_class}">{badge_label}</span>
@@ -889,6 +890,7 @@ with center_col:
             placeholder="e.g. wildfire evacuation zones california",
             label_visibility="collapsed",
             key=f"query_widget_v{st.session_state.widget_gen}",
+            on_change=_search_from_input,
         )
     with btn_col:
         st.button(
@@ -942,35 +944,58 @@ st.markdown(RANKS_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(SOURCES_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(FOOTER_HTML, unsafe_allow_html=True)
 
-# Auto-scroll to the results if a search just completed. Streamlit renders
-# components.html inside a nested iframe, so window.parent might be one
-# hop shy of the actual top document. We try window.parent AND window.top,
-# and we retry a few times because the results markdown might not have
-# committed to the DOM by the time this iframe loads.
+# Auto-scroll to the results. On Streamlit Cloud, cross-frame DOM access
+# from components.html is unreliable — Streamlit's iframe sandbox blocks
+# scrollIntoView about half the time. The bulletproof workaround is to
+# change the URL hash to a named anchor (id="results-anchor" is baked into
+# the results HTML). The browser then handles the scroll natively, which
+# doesn't need iframe permissions.
 if st.session_state.pop("_just_searched", False):
     components.html(
         """
         <script>
         (function() {
-            let attempts = 0;
-            function tryScroll() {
-                attempts++;
-                const contexts = [window.parent, window.top].filter(Boolean);
-                for (const ctx of contexts) {
+            const targetId = 'results-anchor';
+
+            // Strategy 1: change parent URL hash (native browser anchor scroll)
+            function tryHashScroll() {
+                for (const ctx of [window.top, window.parent]) {
                     try {
-                        if (!ctx.document) continue;
-                        const target = ctx.document.querySelector('.mode-row')
-                                    || ctx.document.querySelector('#radar-wrap');
-                        if (target) {
-                            target.scrollIntoView({behavior: 'smooth', block: 'start'});
+                        if (ctx && ctx.location) {
+                            // Clear hash first so re-triggering same anchor still scrolls
+                            ctx.location.hash = '';
+                            ctx.location.hash = targetId;
                             return true;
                         }
-                    } catch (e) { /* cross-origin blocked, try next */ }
+                    } catch (e) { /* blocked, next */ }
                 }
-                if (attempts < 8) setTimeout(tryScroll, 200);
                 return false;
             }
-            setTimeout(tryScroll, 300);
+
+            // Strategy 2: direct scrollIntoView (works when iframe not sandboxed)
+            function tryDomScroll() {
+                for (const ctx of [window.top, window.parent]) {
+                    try {
+                        if (!ctx || !ctx.document) continue;
+                        const el = ctx.document.getElementById(targetId)
+                                || ctx.document.querySelector('.mode-row');
+                        if (el) {
+                            el.scrollIntoView({behavior: 'smooth', block: 'start'});
+                            return true;
+                        }
+                    } catch (e) { /* blocked, next */ }
+                }
+                return false;
+            }
+
+            // Fire both strategies with retries — whichever works first wins
+            let attempts = 0;
+            const maxAttempts = 15;
+            const interval = setInterval(() => {
+                attempts++;
+                const scrolled = tryDomScroll() || tryHashScroll();
+                if (scrolled || attempts >= maxAttempts) clearInterval(interval);
+            }, 150);
         })();
         </script>
         """,
