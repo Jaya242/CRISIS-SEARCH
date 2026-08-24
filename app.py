@@ -1014,7 +1014,7 @@ with gr.Blocks(
     title="Signal — Crisis-Aware Search",
     css=CUSTOM_CSS,
     theme=gr.themes.Base(),
-    head=SOCIAL_META_HEAD + DIRECT_SEARCH_JS,
+    head=SOCIAL_META_HEAD,
     analytics_enabled=False,
 ) as demo:
     gr.HTML(NAV_HTML)
@@ -1095,4 +1095,6 @@ with gr.Blocks(
     gr.HTML(FOOTER_HTML)
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    # HF Spaces handles routing — no share tunnel needed.
+    # For local runs, add share=True back if you want a public gradio.live URL.
+    demo.launch()

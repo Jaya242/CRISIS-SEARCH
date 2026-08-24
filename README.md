@@ -4,7 +4,7 @@
 
 Signal is a live search reranker that auto-detects whether a query is an **active emergency** or a **standard lookup** and re-weights three signals — relevance, credibility, and freshness — accordingly. Search engines optimize for relevance under the assumption that all queries are equal. They aren't. A person searching *"wildfire evacuation Napa right now"* has different needs than one searching *"history of California wildfires"*, and Signal ranks results with that difference in mind.
 
-**Live demo:** [https://jaya242--signal-ui.modal.run](https://jaya242--signal-ui.modal.run)
+**Live demo:** [https://crisis-search.streamlit.app](https://crisis-search.streamlit.app)
 
 ---
 
@@ -17,9 +17,8 @@ Signal is a live search reranker that auto-detects whether a query is an **activ
 5. [Repository structure](#repository-structure)
 6. [Local installation](#local-installation)
 7. [Training the credibility classifier](#training-the-credibility-classifier)
-8. [Running the app](#running-the-app)
-9. [Deploying to Modal](#deploying-to-modal)
-10. [Limitations and next steps](#limitations-and-next-steps)
+8. [Deployment](#deployment)
+9. [Limitations and next steps](#limitations-and-next-steps)
 
 ---
 
@@ -30,8 +29,8 @@ Given a natural-language query, Signal:
 1. **Fetches live news** from Google News RSS (Reuters, AP, BBC, NYT, Guardian, NPR, USGS, NOAA, and hundreds of other publishers).
 2. **Classifies the query intent** as `emergency` or `standard` using a keyword-based crisis detector (word-boundary matching, emergency signals win ties — because missing a real emergency is worse than a false alarm).
 3. **Scores each article** on three axes:
-   - **Relevance** — semantic similarity between the query and article, computed with `sentence-transformers/all-MiniLM-L6-v2`.
-   - **Credibility** — a hybrid score: `0.6 × publisher_prior + 0.4 × classifier`. The publisher prior is a curated reputation table (`src/publisher_trust.py`); the classifier is a DistilBERT fine-tuned on LIAR2 (75.7% validation accuracy). The blend fixes a real problem — LIAR2 is political-claim data, so on news headlines the classifier is out of distribution and its output clusters low. Combining it with a per-publisher prior restores the source-level signal it can't recover from text alone.
+   - **Relevance** — semantic similarity between the query and article, computed with `sentence-transformers/all-MiniLM-L6-v2` (a bi-encoder, used off-the-shelf).
+   - **Credibility** — hybrid score: `0.6 × publisher_prior + 0.4 × classifier`. The publisher prior is a curated reputation table (`src/publisher_trust.py`) covering ~70 outlets; the classifier is a DistilBERT fine-tuned on LIAR2 (75.7% validation accuracy). The blend fixes a real problem — LIAR2 is political-claim data, so on news headlines the classifier's output clusters low. Combining it with a per-publisher prior restores the source-level signal it can't recover from text alone.
    - **Freshness** — exponential time-decay `exp(-age_in_days / 30)`.
 4. **Combines the three signals** with mode-specific weights, sorts by the composite score, and returns the top K with a full breakdown of *why each result ranked where it did*.
 
@@ -91,7 +90,7 @@ The `30` constant sets the decay speed — an article halves in freshness every 
                           │             ranker (src/ranker.py)    │
                           │                                       │
                           │   R = MiniLM-L6-v2 cos(query, doc)    │
-                          │   C = DistilBERT(finetuned) on doc    │
+                          │   C = 0.6·prior + 0.4·classifier      │
                           │   F = exp(-age_days / 30)             │
                           │                                       │
                           │   score = w_r·R + w_c·C + w_f·F       │
@@ -99,8 +98,8 @@ The `30` constant sets the decay speed — an article halves in freshness every 
                                           │
                                           ▼
                           ┌────────────────────────┐
-                          │  Gradio UI (app.py)    │  Top-K results + signal breakdown
-                          │  Signal frontend       │
+                          │  Streamlit UI          │  Top-K results + signal breakdown
+                          │  (streamlit_app.py)    │
                           └────────────────────────┘
 ```
 
@@ -109,29 +108,29 @@ The `30` constant sets the decay speed — an article halves in freshness every 
 | Layer            | Choice                                     | Why                                                                        |
 | ---------------- | ------------------------------------------ | -------------------------------------------------------------------------- |
 | Language         | Python 3.11                                | Ecosystem match for the ML libraries used.                                 |
-| Deep learning    | PyTorch 2.4 (CPU)                          | Runtime doesn't need a GPU. Small, cheap to deploy.                        |
-| Transformers     | `transformers` 4.43                        | DistilBERT for credibility, tokenizer utilities.                           |
-| Semantic search  | `sentence-transformers` 3.0 (all-MiniLM-L6-v2) | 90MB embedding model — fast, competitive quality for short news snippets. |
+| Deep learning    | PyTorch (CPU)                              | Runtime doesn't need a GPU. Small, cheap to deploy.                        |
+| Transformers     | `transformers` (4.43)                      | DistilBERT for credibility, tokenizer utilities.                           |
+| Semantic search  | `sentence-transformers` 2.7 (all-MiniLM-L6-v2) | 90MB embedding model — fast, competitive quality for short news snippets. |
 | Fine-tuning      | `peft` (LoRA) — optional path              | Adapter-based fine-tuning if you want to keep the base frozen.             |
 | Training data    | LIAR2 (via HuggingFace `datasets`)         | Widely used political-fact-check corpus; 6-way collapsed to binary here.   |
 | Retrieval        | Google News RSS                            | No API key, hundreds of publishers, real freshness signal.                 |
-| UI               | Gradio 4.44 (Blocks + custom CSS)          | Fast prototyping, mounts cleanly into FastAPI/Modal.                       |
-| Serving          | FastAPI + `gr.mount_gradio_app`            | ASGI, plays nicely with Modal's `@modal.asgi_app()`.                       |
-| Deployment       | Modal (CPU, scale-to-zero)                 | Serverless, purpose-built for ML inference, generous free tier.            |
+| UI               | Streamlit + custom CSS                     | Fast to build, easy to deploy, injects raw HTML for the animated radar and result cards. |
+| Deployment       | Streamlit Community Cloud (CPU, free tier) | Zero cost, sleeps and wakes on demand, permanent URL.                      |
 
 ## Repository structure
 
 ```
 factchecker/
-├── app.py                     # Gradio Blocks UI (the frontend you see)
-├── modal_deploy.py            # Modal deploy config — image, volume, ASGI app
-├── requirements.txt           # Local dev dependencies
+├── streamlit_app.py           # Main entry point — Streamlit UI
+├── requirements.txt           # pip dependencies
+├── runtime.txt                # Pins Python 3.11 (tokenizers doesn't build on 3.14)
 ├── training_log.txt           # Latest classifier training run
 │
 ├── src/
 │   ├── crisis_detector.py     # Query intent: "emergency" vs "standard"
 │   ├── freshness.py           # exp(-age/30) time-decay
 │   ├── ranker.py              # Composite scoring, weight profiles
+│   ├── publisher_trust.py     # Curated per-publisher trust table
 │   ├── model.py               # DistilBERT + head architecture
 │   ├── train.py               # Full fine-tune loop
 │   ├── train_lora.py          # LoRA fine-tune loop
@@ -147,27 +146,24 @@ factchecker/
 │   └── corpus_scores.json     # Per-article credibility scores (cached)
 │
 ├── checkpoints/               # Fine-tuned model weights (gitignored, ~250MB)
-│   ├── best_model.pt          # Full fine-tune
-│   └── best_model_lora.pt     # LoRA adapter
+│   └── best_model.pt          # Downloaded at boot from GitHub Release
 │
 ├── scripts/
 │   └── score_corpus.py        # One-off: batch-score the cached corpus
 │
-├── tests/
-│   ├── test_freshness.py
-│   └── test_ranker.py
-│
-└── notebooks/                 # Exploratory (empty in git)
+└── tests/
+    ├── test_freshness.py
+    └── test_ranker.py
 ```
 
 ## Local installation
 
-**Prerequisites:** Python 3.11 or 3.12, git, ~2GB free disk (dependencies + models).
+**Prerequisites:** Python 3.11, git, ~2GB free disk (dependencies + models).
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/Jaya242/CRISIS-SEARCH.git
-cd CRISIS-SEARCH
+git clone https://github.com/jaya242/crisis-search.git
+cd crisis-search
 
 # 2. Create and activate a virtual environment
 python -m venv .venv
@@ -177,15 +173,13 @@ source .venv/bin/activate       # macOS/Linux
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. (First run only) The embedding model downloads on first query.
-#    If you want to warm it up:
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# 4. Run the app
+streamlit run streamlit_app.py
 ```
 
-**Note on the credibility checkpoint.** `checkpoints/best_model.pt` is not committed (gitignored, ~250MB). You have two options:
+The app opens at `http://localhost:8501`. First search downloads the MiniLM embedding model (~90MB) and the fine-tuned classifier checkpoint (~250MB, from GitHub Releases) — those take about 30 seconds the first time, then are cached.
 
-- **Train your own** (see next section) — takes ~10 minutes on a laptop CPU, ~1 minute on a GPU.
-- **Skip credibility scoring** — the ranker falls back to `C = 0.5` for every article, so relevance + freshness still work.
+**Note on the checkpoint.** `checkpoints/best_model.pt` is not committed (gitignored, ~250MB). The app fetches it from the repo's GitHub Release on first run. If you want to train your own instead, see the next section.
 
 ## Training the credibility classifier
 
@@ -201,68 +195,41 @@ Training uses the LIAR2 dataset (auto-downloaded via `datasets`). The default co
 
 The classifier binary-collapses LIAR2's 6-way labels by dropping the ambiguous middle classes (`barely-true`, `half-true`) and merging the rest into `credible` (`true`, `mostly-true`) vs `not_credible` (`false`, `pants-fire`). This is a modeling choice made to keep the binary crisp — half-truths are their own hard problem.
 
-## Running the app
+## Deployment
 
-**Locally:**
+Signal is deployed on [Streamlit Community Cloud](https://share.streamlit.io), a free hosting tier for Streamlit apps.
 
-```bash
-python app.py
-```
+**How it works:**
+- Push code to GitHub → Streamlit Cloud auto-detects changes → rebuilds the app.
+- Free CPU tier: sleeps after ~48 hours of no traffic, wakes on incoming request in ~15–30 seconds.
+- Persistent URL: [crisis-search.streamlit.app](https://crisis-search.streamlit.app) — works forever, no credit card required.
 
-Prints two URLs:
+**Deploying your own copy:**
 
-- `http://127.0.0.1:7860` — local only
-- `https://<random>.gradio.live` — public 72-hour tunnel (works when `share=True` is set in `app.py`, which it is by default)
+1. Fork this repo.
+2. Upload `checkpoints/best_model.pt` as a GitHub Release asset in your fork (tag `v1.0`, filename `best_model.pt`).
+3. Update the `CKPT_URL` fallback in `src/live_pipeline.py` to point at your release URL, or set the `SIGNAL_CKPT_URL` env var in Streamlit Cloud's secrets.
+4. Go to [share.streamlit.io](https://share.streamlit.io) → connect your fork → set main file to `streamlit_app.py` → in **Advanced settings**, set Python version to **3.11** (critical — 3.14 doesn't build `tokenizers`).
+5. Deploy.
 
-Share the `.gradio.live` URL with anyone. Note this only works while `python app.py` is running.
-
-**On Modal (permanent URL):** see next section.
-
-## Deploying to Modal
-
-Signal is deployed on [Modal](https://modal.com), a serverless platform purpose-built for ML inference. The container scales to zero when idle (no charge) and cold-starts on the first request (~15s). Warm requests are ~2–3s.
-
-**Prerequisites:** a Modal account (free — sign up at [modal.com](https://modal.com)).
-
-```bash
-# 1. Install and authenticate
-pip install modal
-modal setup                                              # opens browser
-
-# 2. Create a persistent volume for the fine-tuned checkpoint
-modal volume create signal-checkpoints
-modal volume put signal-checkpoints checkpoints/best_model.pt best_model.pt
-
-# 3. Deploy
-modal deploy modal_deploy.py
-```
-
-Modal prints a URL like `https://<username>--signal-ui.modal.run`. That's your permanent shareable link.
-
-**Cost.** On Modal's free tier ($30/mo credits when a payment method is attached), Signal's realistic monthly cost is well under $1 for portfolio traffic. Breakdown: idle container = $0 (scale-to-zero), per-query compute ≈ $0.0007, image storage ≈ $0.05/mo, volume storage ≈ $0.04/mo.
-
-Config lives in `modal_deploy.py`:
-
-- Image: Debian slim + Python 3.11 + CPU-only torch + pinned transformers/gradio/starlette/fastapi (to dodge a known TemplateResponse signature mismatch between newer starlette and older gradio).
-- Container: 2 vCPU, 2GB RAM, scale-to-zero after 10 minutes idle.
-- Checkpoint: mounted at `/checkpoints/` from the Modal Volume, accessed via `SIGNAL_CKPT_PATH` env var (set in the image).
+Total cost: $0. Total setup time: ~30 minutes.
 
 ## Limitations and next steps
 
 **Honest limitations:**
 
-- **Credibility is source-agnostic per query.** The classifier scores an article's *text*, not the publisher's historical accuracy. A well-written but wrong AP article and a well-written but wrong tabloid article get similar scores. A per-publisher trust prior would help.
-- **75.7% classifier accuracy** means ~1 in 4 credibility scores is wrong. For a live newsroom tool this bar is too low; for a demo showing the pattern, it's acceptable. Longer training and a bigger backbone (e.g., DeBERTa-v3) would push it up.
+- **75.7% classifier accuracy** means ~1 in 4 credibility scores from the text classifier alone would be wrong. The publisher-prior blend (60/40) compensates for this in practice, but the underlying model still isn't strong. Longer training and a bigger backbone (e.g., DeBERTa-v3) would push it up.
+- **Publisher table is hand-curated.** ~70 outlets, informed by external factuality assessments but ultimately a hypothesis, not a fitted result. A model that learned publisher trust from source-labeled ranking data would be more principled.
 - **Google News RSS gives descriptions, not full text.** Snippet-only credibility scoring is noisier than full-article scoring. A production version would fetch and cache article bodies.
 - **The crisis detector is a keyword rule engine.** It handles "right now", "urgent", "evacuate" well and everything else as `standard`. An LLM classifier (Claude Haiku, stub already in code) would catch subtler urgency cues like *"which highway is closed"*.
 
 **Next steps under consideration:**
 
 - Swap the keyword classifier for a Claude-Haiku call, with keyword fallback.
-- Add a per-publisher credibility prior (MediaBiasFactCheck-style).
-- Cache retrieval results per (query, hour) to cut cold-start latency.
+- Learn publisher trust from labeled ranking data instead of hand-curating.
+- Cache retrieval results per (query, hour) to cut per-request latency.
 - Log ranking decisions for offline evaluation against a labeled crisis-search benchmark.
 
 ---
 
-Built by [@Jaya242](https://github.com/Jaya242). Live at [jaya242--signal-ui.modal.run](https://jaya242--signal-ui.modal.run).
+Built by [@jaya242](https://github.com/jaya242). Live at [crisis-search.streamlit.app](https://crisis-search.streamlit.app).
