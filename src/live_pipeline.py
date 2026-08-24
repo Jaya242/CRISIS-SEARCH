@@ -32,11 +32,38 @@ _tokenizer = None
 _classifier = None
 
 CKPT_PATH = os.getenv("SIGNAL_CKPT_PATH", "checkpoints/best_model.pt")
+# Fallback download source for platforms that can't ship the 250MB checkpoint
+# in the git repo (Streamlit Cloud, HF free tier, etc.). Upload the .pt file
+# as an asset on a GitHub Release and put the URL here. Override with the
+# SIGNAL_CKPT_URL env var if you want to change it at deploy time.
+CKPT_URL = os.getenv(
+    "SIGNAL_CKPT_URL",
+    "https://github.com/Jaya242/CRISIS-SEARCH/releases/download/v1.0/best_model.pt",
+)
+
+
+def _ensure_checkpoint():
+    """Download the fine-tuned classifier weights if they aren't on disk.
+
+    Streamlit Community Cloud's repo file cap is 100MB; our checkpoint is
+    ~250MB. So the file lives on a GitHub Release and we fetch it once
+    per container boot into the expected local path. On platforms where
+    the file is already present (local dev, HF Spaces with LFS, Modal
+    with volume mount) this is a no-op.
+    """
+    if os.path.exists(CKPT_PATH):
+        return
+    import urllib.request
+    os.makedirs(os.path.dirname(CKPT_PATH) or ".", exist_ok=True)
+    print(f"[signal] Downloading checkpoint from {CKPT_URL} -> {CKPT_PATH}")
+    urllib.request.urlretrieve(CKPT_URL, CKPT_PATH)
+    print(f"[signal] Checkpoint ready ({os.path.getsize(CKPT_PATH) / 1e6:.1f} MB).")
 
 
 def _lazy_init():
     global _embed_model, _tokenizer, _classifier
     if _embed_model is None:
+        _ensure_checkpoint()
         _embed_model = SentenceTransformer("all-MiniLM-L6-v2")
         _tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
         _classifier = CredibilityClassifier().to(DEVICE)
