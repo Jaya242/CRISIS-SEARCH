@@ -944,12 +944,12 @@ st.markdown(RANKS_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(SOURCES_STRIP_HTML, unsafe_allow_html=True)
 st.markdown(FOOTER_HTML, unsafe_allow_html=True)
 
-# Auto-scroll to the results. On Streamlit Cloud, cross-frame DOM access
-# from components.html is unreliable — Streamlit's iframe sandbox blocks
-# scrollIntoView about half the time. The bulletproof workaround is to
-# change the URL hash to a named anchor (id="results-anchor" is baked into
-# the results HTML). The browser then handles the scroll natively, which
-# doesn't need iframe permissions.
+# Auto-scroll to the results. The race we're fighting: Streamlit sometimes
+# commits the results HTML to the DOM before this script fires, sometimes
+# after. If the anchor element isn't there yet, scrollIntoView silently
+# does nothing. Fix is to watch for the anchor via MutationObserver, then
+# keep scrolling for a beat afterward to overpower any late Streamlit
+# re-renders that might reset the scroll position.
 if st.session_state.pop("_just_searched", False):
     components.html(
         """
@@ -957,45 +957,72 @@ if st.session_state.pop("_just_searched", False):
         (function() {
             const targetId = 'results-anchor';
 
-            // Strategy 1: change parent URL hash (native browser anchor scroll)
-            function tryHashScroll() {
+            function getParentDoc() {
+                for (const ctx of [window.top, window.parent]) {
+                    try {
+                        if (ctx && ctx.document) return ctx.document;
+                    } catch (e) {}
+                }
+                return null;
+            }
+
+            function scrollNow(doc) {
+                const el = doc.getElementById(targetId) || doc.querySelector('.mode-row');
+                if (el) {
+                    el.scrollIntoView({behavior: 'smooth', block: 'start'});
+                    return true;
+                }
+                return false;
+            }
+
+            function forceHashScroll() {
                 for (const ctx of [window.top, window.parent]) {
                     try {
                         if (ctx && ctx.location) {
-                            // Clear hash first so re-triggering same anchor still scrolls
                             ctx.location.hash = '';
                             ctx.location.hash = targetId;
                             return true;
                         }
-                    } catch (e) { /* blocked, next */ }
+                    } catch (e) {}
                 }
                 return false;
             }
 
-            // Strategy 2: direct scrollIntoView (works when iframe not sandboxed)
-            function tryDomScroll() {
-                for (const ctx of [window.top, window.parent]) {
-                    try {
-                        if (!ctx || !ctx.document) continue;
-                        const el = ctx.document.getElementById(targetId)
-                                || ctx.document.querySelector('.mode-row');
-                        if (el) {
-                            el.scrollIntoView({behavior: 'smooth', block: 'start'});
-                            return true;
-                        }
-                    } catch (e) { /* blocked, next */ }
-                }
-                return false;
+            const doc = getParentDoc();
+            if (!doc) {
+                // Zero DOM access — fall back to pure hash-based navigation
+                setTimeout(forceHashScroll, 200);
+                return;
             }
 
-            // Fire both strategies with retries — whichever works first wins
-            let attempts = 0;
-            const maxAttempts = 15;
-            const interval = setInterval(() => {
-                attempts++;
-                const scrolled = tryDomScroll() || tryHashScroll();
-                if (scrolled || attempts >= maxAttempts) clearInterval(interval);
-            }, 150);
+            // First: try scrolling immediately in case the anchor is already there
+            let scrolled = scrollNow(doc);
+
+            // Second: if the anchor isn't there yet, watch for it
+            if (!scrolled) {
+                const observer = new MutationObserver(() => {
+                    if (scrollNow(doc)) {
+                        observer.disconnect();
+                        scrolled = true;
+                    }
+                });
+                observer.observe(doc.body, {childList: true, subtree: true});
+                // Stop observing after 3s no matter what — belt-and-suspenders
+                setTimeout(() => observer.disconnect(), 3000);
+            }
+
+            // Third: for 800ms after the initial scroll, keep re-asserting it
+            // every animation frame. This defeats any late Streamlit reflows
+            // that might reset the scroll position back to the top.
+            const start = Date.now();
+            function keepScrolling() {
+                if (scrolled) scrollNow(doc);
+                if (Date.now() - start < 800) requestAnimationFrame(keepScrolling);
+            }
+            requestAnimationFrame(keepScrolling);
+
+            // Fourth: hash-based fallback in case scrollIntoView is a no-op
+            setTimeout(forceHashScroll, 400);
         })();
         </script>
         """,
